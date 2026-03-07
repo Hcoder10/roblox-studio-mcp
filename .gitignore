@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.js.map
+*.d.ts.map
+.turbo/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+
+# Go
+packages/studio-capture/studio-capture
+packages/studio-capture/studio-capture.exe
+
+# Plugin build output
+packages/plugin/*.rbxmx
+
+# Installer output
+installer/Output/

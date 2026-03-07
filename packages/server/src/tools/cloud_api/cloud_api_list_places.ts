@@ -1,0 +1,22 @@
+import type { ToolDefinition, ToolHandler } from '@roblox-studio-mcp/shared';
+import { cloud_api_list_places_input } from '@roblox-studio-mcp/shared';
+import { cloud_fetch } from './cloud_api_helpers.js';
+
+export const definition: ToolDefinition = {
+  name: 'cloud_api_list_places',
+  description: 'List places in a universe.',
+  input_schema: cloud_api_list_places_input,
+  execution_layer: 'cloud',
+  category: 'cloud_api',
+  requires_session: false,
+};
+
+export const handler: ToolHandler = async (args) => {
+  const { universe_id, cursor, limit } = args as { universe_id: string; cursor?: string; limit?: number };
+  return cloud_fetch(`/cloud/v2/universes/${universe_id}/places`, {
+    query: {
+      maxPageSize: String(limit || 50),
+      ...(cursor ? { pageToken: cursor } : {}),
+    },
+  });
+};

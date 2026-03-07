@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test
+
+  build-capture:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build studio-capture
+        working-directory: packages/studio-capture
+        run: |
+          go mod tidy
+          go build -o studio-capture.exe ./cmd/studio-capture
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-capture
+          path: packages/studio-capture/studio-capture.exe
+
+  build-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rojo
+        run: |
+          curl -L https://github.com/rojo-rbx/rojo/releases/latest/download/rojo-linux.zip -o rojo.zip
+          unzip rojo.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/rojo
+      - name: Build plugin
+        working-directory: packages/plugin
+        run: rojo build -o StudioBridgeMCP.rbxmx
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, build-capture, build-plugin]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: roblox-studio-mcp-server
