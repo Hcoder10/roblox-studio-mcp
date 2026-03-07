@@ -5,7 +5,7 @@ export const worker_vfx_definition: AgentDefinition = {
   type: 'worker_vfx',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-preview-05-20',
+    model: 'gemini-3-flash-preview',
     temperature: 0.4,
     max_tokens: 2048,
     api_key_env: 'GEMINI_API_KEY',
@@ -71,3 +71,4 @@ Connect two Attachments. Set Width0, Width1 (start/end width), CurveSize0/1 for 
     allowed_categories: ['instance'],
   },
 };
+

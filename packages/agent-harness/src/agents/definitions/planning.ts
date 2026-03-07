@@ -5,7 +5,7 @@ export const planning_definition: AgentDefinition = {
   type: 'planning',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-pro',
+    model: 'gemini-3.1-flash-lite-preview',
     temperature: 0.5,
     max_tokens: 8192,
     api_key_env: 'GEMINI_API_KEY',
@@ -62,3 +62,4 @@ Always provide structured analysis:
     allowed_categories: [],
   },
 };
+

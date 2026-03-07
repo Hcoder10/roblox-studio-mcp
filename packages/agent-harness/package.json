@@ -9,11 +9,12 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
     "@roblox-studio-mcp/shared": "1.0.0",
+    "dotenv": "^17.3.1",
     "express": "^5.1.0",
     "pino": "^9.6.0",
     "uuid": "^11.1.0",

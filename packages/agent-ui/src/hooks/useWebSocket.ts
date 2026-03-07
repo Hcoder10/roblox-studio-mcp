@@ -14,6 +14,7 @@ export function useWebSocket(url: string) {
 
   const connect = useCallback(() => {
     if (!mountedRef.current) return;
+    clearTimeout(reconnectTimerRef.current);
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -50,8 +51,8 @@ export function useWebSocket(url: string) {
     };
 
     ws.onerror = () => {
-      // onclose will fire after onerror
-      ws.close();
+      // Avoid manually closing a CONNECTING socket.
+      // The browser will transition to CLOSED and trigger onclose.
     };
   }, [url]);
 

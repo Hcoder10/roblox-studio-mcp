@@ -5,7 +5,7 @@ export const worker_building_definition: AgentDefinition = {
   type: 'worker_building',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-preview-05-20',
+    model: 'gemini-3-flash-preview',
     temperature: 0.3,
     max_tokens: 4096,
     api_key_env: 'GEMINI_API_KEY',
@@ -83,3 +83,4 @@ end
     allowed_categories: ['instance', 'terrain'],
   },
 };
+

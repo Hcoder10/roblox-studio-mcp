@@ -24,7 +24,11 @@ export function useChat(
         timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, msg]);
-      send({ type: 'user_message', payload: { content }, timestamp: Date.now() });
+      send({
+        type: 'user_message',
+        payload: { text: content, content },
+        timestamp: Date.now(),
+      });
     },
     [send],
   );
@@ -43,6 +47,7 @@ export function useChat(
         const data = lastEvent.payload as {
           agent_id: string;
           agent_type?: AgentType;
+          text?: string;
           content: string;
           tool_calls?: ToolCall[];
         };
@@ -56,7 +61,7 @@ export function useChat(
           role: 'agent',
           agent_id: data.agent_id,
           agent_type: data.agent_type,
-          content: data.content,
+          content: data.content ?? data.text ?? '',
           tool_calls: data.tool_calls,
           timestamp: lastEvent.timestamp,
         };
@@ -68,14 +73,29 @@ export function useChat(
         const data = lastEvent.payload as {
           agent_id: string;
           agent_type?: AgentType;
-          tool_call: ToolCall;
+          tool_name?: string;
+          args?: Record<string, unknown>;
+          tool_call_id?: string;
+          tool_call?: Partial<ToolCall>;
         };
+        if (!data.agent_id) break;
+
+        const fallbackToolId = data.tool_call_id ?? `${data.agent_id}-${lastEvent.timestamp}`;
+        const normalizedToolCall: ToolCall = {
+          id: data.tool_call?.id ?? fallbackToolId,
+          tool_name: data.tool_call?.tool_name ?? data.tool_name ?? 'unknown',
+          args: data.tool_call?.args ?? data.args ?? {},
+          status: data.tool_call?.status ?? 'pending',
+          result: data.tool_call?.result,
+          duration_ms: data.tool_call?.duration_ms,
+        };
+
         // Add tool call as a message or append to last agent message
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === 'agent' && last.agent_id === data.agent_id) {
             const updated = { ...last };
-            updated.tool_calls = [...(updated.tool_calls ?? []), data.tool_call];
+            updated.tool_calls = [...(updated.tool_calls ?? []), normalizedToolCall];
             return [...prev.slice(0, -1), updated];
           }
           // Create new agent message with tool call
@@ -85,7 +105,7 @@ export function useChat(
             agent_id: data.agent_id,
             agent_type: data.agent_type,
             content: '',
-            tool_calls: [data.tool_call],
+            tool_calls: [normalizedToolCall],
             timestamp: lastEvent.timestamp,
           };
           return [...prev, msg];
@@ -97,18 +117,37 @@ export function useChat(
         const data = lastEvent.payload as {
           agent_id: string;
           tool_call_id: string;
+          tool_name?: string;
           result: unknown;
-          status: 'success' | 'error';
-          duration_ms: number;
+          status?: 'success' | 'error';
+          success?: boolean;
+          duration_ms?: number;
         };
+
+        const status = data.status ?? (data.success === false ? 'error' : 'success');
         setMessages((prev) =>
           prev.map((msg) => {
             if (msg.agent_id !== data.agent_id || !msg.tool_calls) return msg;
-            const updatedCalls = msg.tool_calls.map((tc) =>
-              tc.id === data.tool_call_id
-                ? { ...tc, result: data.result, status: data.status, duration_ms: data.duration_ms }
-                : tc,
-            );
+
+            let matched = false;
+            const updatedCalls = msg.tool_calls.map((tc) => {
+              const matchesById = data.tool_call_id != null && tc.id === data.tool_call_id;
+              const matchesByName =
+                data.tool_call_id == null
+                && !matched
+                && data.tool_name != null
+                && tc.tool_name === data.tool_name
+                && tc.status === 'pending';
+
+              if (!matchesById && !matchesByName) return tc;
+              matched = true;
+              return {
+                ...tc,
+                result: data.result,
+                status,
+                duration_ms: data.duration_ms ?? tc.duration_ms,
+              };
+            });
             return { ...msg, tool_calls: updatedCalls };
           }),
         );

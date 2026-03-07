@@ -1,3 +1,4 @@
+﻿import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
@@ -14,7 +15,7 @@ import { get_default_definitions } from './config/agent_config.js';
 
 const logger = pino({ name: 'agent-harness' });
 
-const PORT = parseInt(process.env.PORT ?? '3001', 10);
+const PORT = parseInt(process.env.AGENT_PORT ?? process.env.PORT ?? '3001', 10);
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? 'http://localhost:3000';
 
 async function main(): Promise<void> {
@@ -39,7 +40,7 @@ async function main(): Promise<void> {
     await mcp_client.list_tools();
     logger.info('MCP client initialized and tools loaded');
   } catch (error) {
-    logger.warn({ error }, 'Could not initialize MCP client — will retry on first request');
+    logger.warn({ error }, 'Could not initialize MCP client - will retry on first request');
   }
 
   // Create orchestrator
@@ -168,3 +169,4 @@ main().catch((error) => {
   logger.fatal({ error }, 'Fatal error');
   process.exit(1);
 });
+

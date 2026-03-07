@@ -1,7 +1,6 @@
 {
   "name": "StudioBridgeMCP",
   "tree": {
-    "$className": "Folder",
     "$path": "src"
   }
 }

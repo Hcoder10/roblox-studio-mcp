@@ -169,13 +169,14 @@ export class McpClient {
   private async send_notification(method: string, params: Record<string, unknown>): Promise<void> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
     };
 
     if (this.session_id) {
       headers['mcp-session-id'] = this.session_id;
     }
 
-    await fetch(`${this.server_url}/mcp`, {
+    const response = await fetch(`${this.server_url}/mcp`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -184,6 +185,10 @@ export class McpClient {
         params,
       }),
     });
+
+    if (!response.ok) {
+      throw new Error(`MCP notification ${method} failed: ${response.status} ${await response.text()}`);
+    }
   }
 
   private async parse_sse_response(response: Response): Promise<unknown> {

@@ -9,7 +9,8 @@ local UI = require(script.ui)
 -- Configuration
 -- ============================================================================
 
-local DEFAULT_SERVER_URL = "https://roblox-studio-mcp.up.railway.app"
+local DEFAULT_SERVER_URL = "http://localhost:3000"
+local LEGACY_CLOUD_SERVER_URL = "https://aware-hope-production-b771.up.railway.app"
 local POLL_INTERVAL = 0.5      -- seconds between polls
 local HEARTBEAT_INTERVAL = 15  -- seconds between heartbeats
 local RETRY_DELAY = 3          -- seconds to wait after connection failure
@@ -54,13 +55,30 @@ local function start_poll_loop()
 	state.poll_thread = task.spawn(function()
 		while not state.should_stop do
 			local ok, result = Transport.poll(state.server_url, state.token)
+			local command = nil
 
-			if ok and type(result) == "table" and result.command_id then
+			if ok and type(result) == "table" then
+				if result.has_command == true and type(result.command) == "table" then
+					command = result.command
+				elseif result.command_id or result.id then
+					-- Backward-compatible shape: raw command envelope
+					command = result
+				end
+			end
+
+			if command then
+				local command_id = command.command_id or command.id
+				if not command_id then
+					warn("[StudioBridgeMCP] Received command without id/command_id")
+					task.wait(POLL_INTERVAL)
+					continue
+				end
+
 				-- We got a command
-				UI.set_last_command(result.tool or "unknown")
+				UI.set_last_command(command.tool or "unknown")
 
 				-- Execute the command
-				local exec_result = Executor.execute(result)
+				local exec_result = Executor.execute(command)
 				state.command_count = state.command_count + 1
 				UI.set_command_count(state.command_count)
 
@@ -69,7 +87,7 @@ local function start_poll_loop()
 				local resp_ok, resp_err = Transport.respond(
 					state.server_url,
 					state.token,
-					result.command_id,
+					command_id,
 					success,
 					exec_result.result,
 					exec_result.error_message
@@ -140,6 +158,10 @@ local function connect()
 	-- Read server URL from plugin settings
 	local saved_url = plugin:GetSetting("StudioBridgeMCP_ServerURL")
 	if saved_url and type(saved_url) == "string" and #saved_url > 0 then
+		if saved_url == LEGACY_CLOUD_SERVER_URL then
+			saved_url = DEFAULT_SERVER_URL
+			plugin:SetSetting("StudioBridgeMCP_ServerURL", saved_url)
+		end
 		state.server_url = saved_url
 		UI.set_server(state.server_url)
 	end

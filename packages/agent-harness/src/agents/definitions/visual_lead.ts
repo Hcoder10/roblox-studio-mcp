@@ -5,7 +5,7 @@ export const visual_lead_definition: AgentDefinition = {
   type: 'visual_lead',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-preview-05-20',
+    model: 'gemini-3-flash-preview',
     temperature: 0.5,
     max_tokens: 4096,
     api_key_env: 'GEMINI_API_KEY',
@@ -78,3 +78,4 @@ You make the game look good. You handle lighting, particles, beams, trails, atmo
     allowed_categories: ['instance'],
   },
 };
+

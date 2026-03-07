@@ -58,7 +58,7 @@ export function AgentPanel({ agents, locks }: AgentPanelProps) {
                 <span className="agent-icon">
                   {AGENT_TYPE_ICONS[agent.type] ?? '\uD83E\uDD16'}
                 </span>
-                <span className="agent-name">{agent.id.split('-')[0]}</span>
+                <span className="agent-name">{agent.id?.split('-')[0] ?? 'unknown'}</span>
                 <span
                   className={`agent-status-dot ${STATUS_CLASS[agent.status] ?? ''}`}
                   title={agent.status}
@@ -96,7 +96,7 @@ export function AgentPanel({ agents, locks }: AgentPanelProps) {
                       <span className="detail-value">{agent.error}</span>
                     </div>
                   )}
-                  {agent.active_locks.length > 0 && (
+                  {agent.active_locks?.length > 0 && (
                     <div className="agent-detail-row">
                       <span className="detail-label">Lock IDs</span>
                       <span className="detail-value">

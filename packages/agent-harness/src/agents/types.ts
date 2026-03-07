@@ -28,6 +28,7 @@ export interface AgentTurn {
   thinking?: string;
   text?: string;
   tool_calls: ToolCallRequest[];
+  model_parts?: MessagePart[];
   done: boolean;
 }
 
@@ -43,6 +44,7 @@ export interface Message {
 }
 
 export type MessagePart =
+  | { raw: Record<string, unknown> }
   | { text: string }
   | { functionCall: { name: string; args: Record<string, unknown> } }
   | { functionResponse: { name: string; response: Record<string, unknown> } }

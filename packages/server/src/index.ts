@@ -21,7 +21,7 @@ const event_stream = new EventStream();
 const tool_context = create_tool_context(command_queue, session_manager);
 
 // Create MCP server with all tools
-const { mcp, tool_count } = create_mcp_server(tool_context);
+const { tool_count } = create_mcp_server(tool_context);
 
 // Create Express app
 const app = express();
@@ -35,7 +35,7 @@ app.use('/mcp', create_rate_limiter(1000));
 app.use('/bridge', create_bridge_router(session_manager, command_queue, event_stream));
 
 // MCP Streamable HTTP transport
-const mcp_handler = create_mcp_handler(mcp);
+const mcp_handler = create_mcp_handler(tool_context);
 app.all('/mcp', mcp_handler);
 
 // Health check

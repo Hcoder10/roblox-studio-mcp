@@ -5,7 +5,7 @@ export const orchestrator_definition: AgentDefinition = {
   type: 'orchestrator',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-pro',
+    model: 'gemini-3.1-pro-preview',
     temperature: 0.7,
     max_tokens: 8192,
     api_key_env: 'GEMINI_API_KEY',
@@ -64,3 +64,4 @@ You receive user requests and decompose them into structured tasks that can be a
     allowed_categories: [],
   },
 };
+

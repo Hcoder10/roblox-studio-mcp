@@ -10,7 +10,8 @@ export const vector3_schema = z.object({
 
 export const cframe_schema = z.object({
   position: vector3_schema,
-  rotation: z.tuple([z.number(), z.number(), z.number(), z.number(), z.number(), z.number(), z.number(), z.number(), z.number()]).optional(),
+  // 3x3 rotation matrix (row-major)
+  rotation: z.array(z.number()).length(9).optional(),
 });
 
 export const color3_schema = z.object({

@@ -10,6 +10,18 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 const SERVER_URL = process.env.TEST_SERVER_URL || 'http://localhost:3000';
 const PLUGIN_TOKEN = 'test-session-' + Date.now();
 
+async function read_rpc_response(res: Response): Promise<any> {
+  const body = await res.text();
+  if (body.trim().startsWith('event:')) {
+    const data_line = body
+      .split('\n')
+      .find((line) => line.startsWith('data: '));
+    if (!data_line) throw new Error('Missing SSE data line');
+    return JSON.parse(data_line.slice(6));
+  }
+  return JSON.parse(body);
+}
+
 describe('Transport Round-Trip', () => {
   // Register a mock plugin session
   beforeAll(async () => {
@@ -78,6 +90,21 @@ describe('Transport Round-Trip', () => {
     const session_id = init_res.headers.get('mcp-session-id');
     expect(session_id).toBeTruthy();
 
+    const notify_res = await fetch(`${SERVER_URL}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'mcp-session-id': session_id!,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+        params: {},
+      }),
+    });
+    expect(notify_res.ok).toBe(true);
+
     // Connect session to plugin
     const connect_res = await fetch(`${SERVER_URL}/mcp`, {
       method: 'POST',
@@ -120,7 +147,7 @@ describe('Transport Round-Trip', () => {
     await plugin_promise;
 
     expect(echo_res.ok).toBe(true);
-    const echo_data = await echo_res.json();
+    const echo_data = await read_rpc_response(echo_res);
     expect(echo_data.result).toBeDefined();
 
     const content = echo_data.result.content[0];
@@ -172,6 +199,21 @@ describe('Transport Round-Trip', () => {
 
     const session_id = res.headers.get('mcp-session-id');
 
+    const notify_res = await fetch(`${SERVER_URL}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'mcp-session-id': session_id!,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+        params: {},
+      }),
+    });
+    expect(notify_res.ok).toBe(true);
+
     const tools_res = await fetch(`${SERVER_URL}/mcp`, {
       method: 'POST',
       headers: {
@@ -188,7 +230,7 @@ describe('Transport Round-Trip', () => {
     });
 
     expect(tools_res.ok).toBe(true);
-    const tools_data = await tools_res.json();
+    const tools_data = await read_rpc_response(tools_res);
     expect(tools_data.result.tools.length).toBeGreaterThanOrEqual(112);
   });
 });

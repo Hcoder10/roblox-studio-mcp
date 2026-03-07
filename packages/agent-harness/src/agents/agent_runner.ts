@@ -96,38 +96,32 @@ export class AgentRunner {
         });
       }
 
+      // Preserve the exact model parts (including thought signatures) whenever available.
+      const model_parts: Message['parts'] = agent_turn.model_parts && agent_turn.model_parts.length > 0
+        ? agent_turn.model_parts
+        : [
+            ...(agent_turn.text ? [{ text: agent_turn.text }] as Message['parts'] : []),
+            ...agent_turn.tool_calls.map(tc => ({
+              functionCall: { name: tc.tool_name, args: tc.args },
+            })),
+          ];
+      history.push({ role: 'model', parts: model_parts });
+
       // If the model returned text with no tool calls, we're done
       if (agent_turn.done) {
         final_text = agent_turn.text ?? '';
-
-        // Add model's response to history
-        history.push({
-          role: 'model',
-          parts: [{ text: final_text }],
-        });
-
         break;
       }
-
-      // Process tool calls
-      const model_parts: Message['parts'] = [];
-      if (agent_turn.text) {
-        model_parts.push({ text: agent_turn.text });
-      }
-      for (const tc of agent_turn.tool_calls) {
-        model_parts.push({
-          functionCall: { name: tc.tool_name, args: tc.args },
-        });
-      }
-      history.push({ role: 'model', parts: model_parts });
 
       // Execute tool calls and collect results
       const tool_response_parts: Message['parts'] = [];
 
-      for (const tc of agent_turn.tool_calls) {
+      for (const [index, tc] of agent_turn.tool_calls.entries()) {
+        const tool_call_id = `${task.id}:${turn}:${index}:${tc.tool_name}`;
+
         // Broadcast tool call event
         context.ws_broadcast(
-          create_tool_call_event(context.agent.id, tc.tool_name, tc.args),
+          create_tool_call_event(context.agent.id, tool_call_id, tc.tool_name, tc.args),
         );
 
         logger.debug(
@@ -135,16 +129,21 @@ export class AgentRunner {
           'Executing tool call',
         );
 
+        const started_at = Date.now();
         const result = await context.mcp_client.call_tool(tc.tool_name, tc.args);
+        const duration_ms = Date.now() - started_at;
 
         // Broadcast tool result
         context.ws_broadcast({
           type: 'agent_tool_result',
           payload: {
             agent_id: context.agent.id,
+            tool_call_id,
             tool_name: tc.tool_name,
+            status: result.success ? 'success' : 'error',
             success: result.success,
             result: result.success ? (result as any).data : (result as any).error?.message,
+            duration_ms,
           },
           timestamp: Date.now(),
         });

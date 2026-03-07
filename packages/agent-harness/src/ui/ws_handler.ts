@@ -21,6 +21,17 @@ export function setup_websocket(
   task_queue: TaskQueue,
 ): void {
   const clients = new Set<WebSocket>();
+  const serialize_agents = () =>
+    agent_registry.list().map(a => ({
+      id: a.id,
+      type: a.definition.type,
+      status: a.status,
+      current_task: a.current_task_id,
+      current_task_id: a.current_task_id,
+      model: `${a.definition.model.provider}/${a.definition.model.model}`,
+      active_locks: a.active_locks,
+      error: a.error,
+    }));
 
   function broadcast(event: WsEvent): void {
     const data = JSON.stringify(event);
@@ -39,18 +50,8 @@ export function setup_websocket(
     const state_event: WsEvent = {
       type: 'agent_status_changed',
       payload: {
-        agents: agent_registry.list().map(a => ({
-          id: a.id,
-          type: a.definition.type,
-          status: a.status,
-          current_task_id: a.current_task_id,
-        })),
-        tasks: task_queue.list().map(t => ({
-          id: t.id,
-          title: t.title,
-          status: t.status,
-          assigned_to: t.assigned_to,
-        })),
+        agents: serialize_agents(),
+        tasks: task_queue.list(),
         locks: lock_manager.list(),
       },
       timestamp: Date.now(),
@@ -68,7 +69,8 @@ export function setup_websocket(
 
       switch (msg.type) {
         case 'user_message': {
-          const text = (msg.payload as { text?: string })?.text;
+          const payload = msg.payload as { text?: string; content?: string };
+          const text = payload?.text ?? payload?.content;
           if (!text) {
             ws.send(JSON.stringify({
               type: 'error',
@@ -79,12 +81,7 @@ export function setup_websocket(
           }
 
           try {
-            const response = await orchestrator.handle_user_message(text, broadcast);
-            ws.send(JSON.stringify({
-              type: 'agent_message',
-              payload: { agent_id: 'orchestrator', text: response },
-              timestamp: Date.now(),
-            }));
+            await orchestrator.handle_user_message(text, broadcast);
           } catch (error) {
             ws.send(JSON.stringify({
               type: 'error',
@@ -99,12 +96,7 @@ export function setup_websocket(
           ws.send(JSON.stringify({
             type: 'agent_status_changed',
             payload: {
-              agents: agent_registry.list().map(a => ({
-                id: a.id,
-                type: a.definition.type,
-                status: a.status,
-                current_task_id: a.current_task_id,
-              })),
+              agents: serialize_agents(),
             },
             timestamp: Date.now(),
           }));

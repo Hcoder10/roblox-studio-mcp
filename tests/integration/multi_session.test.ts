@@ -58,6 +58,22 @@ describe('Multi-Session Management', () => {
     });
 
     const session_id = init_res.headers.get('mcp-session-id');
+    expect(session_id).toBeTruthy();
+
+    const notify_res = await fetch(`${SERVER_URL}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'mcp-session-id': session_id!,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+        params: {},
+      }),
+    });
+    expect(notify_res.ok).toBe(true);
 
     // Call session_status without explicit connect — should auto-link
     const status_res = await fetch(`${SERVER_URL}/mcp`, {

@@ -5,7 +5,7 @@ export const worker_texture_definition: AgentDefinition = {
   type: 'worker_texture',
   model: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash-preview-05-20',
+    model: 'gemini-3.1-flash-lite-preview',
     temperature: 0.3,
     max_tokens: 2048,
     api_key_env: 'GEMINI_API_KEY',
@@ -83,3 +83,4 @@ Custom material variations in MaterialService:
     allowed_categories: ['instance'],
   },
 };
+

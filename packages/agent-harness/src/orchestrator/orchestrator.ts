@@ -53,7 +53,7 @@ export class Orchestrator {
 
     ws_broadcast({
       type: 'user_message',
-      payload: { text: message },
+      payload: { text: message, content: message },
       timestamp: Date.now(),
     });
 
@@ -88,7 +88,7 @@ export class Orchestrator {
 
       ws_broadcast({
         type: 'agent_message',
-        payload: { agent_id: 'orchestrator', text: response },
+        payload: { agent_id: 'orchestrator', content: response, text: response },
         timestamp: Date.now(),
       });
 
