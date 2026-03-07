@@ -19,6 +19,10 @@ RUN npm install --ignore-scripts
 RUN cd packages/shared && npx tsc
 RUN cd packages/server && npx tsc
 
+# Prepare production node_modules with shared package baked in
+RUN cp -r packages/shared/dist node_modules/@roblox-studio-mcp/shared/dist && \
+    cp packages/shared/package.json node_modules/@roblox-studio-mcp/shared/package.json
+
 # Production image
 FROM node:20-alpine
 WORKDIR /app
@@ -27,11 +31,7 @@ WORKDIR /app
 COPY --from=builder /app/packages/server/dist ./dist
 COPY --from=builder /app/packages/server/package.json ./package.json
 
-# Copy shared as a local dep
-COPY --from=builder /app/packages/shared/dist ./node_modules/@roblox-studio-mcp/shared/dist
-COPY --from=builder /app/packages/shared/package.json ./node_modules/@roblox-studio-mcp/shared/package.json
-
-# Copy node_modules (production deps only)
+# Copy complete node_modules (includes shared package)
 COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
