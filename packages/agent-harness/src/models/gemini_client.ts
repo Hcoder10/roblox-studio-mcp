@@ -28,7 +28,7 @@ export class GeminiClient implements GenerativeModelClient {
     private live_model: string,
     private thinking_budget: number = 32768,
   ) {
-    this.client = new GoogleGenAI({ apiKey: api_key });
+    this.client = new GoogleGenAI({ apiKey: api_key, apiVersion: 'v1alpha' });
   }
 
   private should_use_thinking(): boolean {
