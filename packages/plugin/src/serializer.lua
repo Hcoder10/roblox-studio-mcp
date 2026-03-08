@@ -241,25 +241,51 @@ function Serializer.deserialize_value(data)
 	return data
 end
 
-function Serializer.get_properties_for_class(className)
+function Serializer.get_properties_for_class(className, instance)
 	local props = {}
-	for class, class_props in pairs(COMMON_PROPERTIES) do
-		if className == class then
-			for _, prop in ipairs(class_props) do
+	local seen = {}
+
+	-- First: exact class match
+	local class_props = COMMON_PROPERTIES[className]
+	if class_props then
+		for _, prop in ipairs(class_props) do
+			if not seen[prop] then
+				seen[prop] = true
 				table.insert(props, prop)
 			end
 		end
 	end
 
-	-- Check inheritance by trying to read BasePart properties
-	if #props == 0 then
-		-- Fallback: try common base classes
+	-- Second: check base classes using IsA when instance is available
+	if instance then
+		local base_classes = { "BasePart", "GuiObject" }
+		for _, base in ipairs(base_classes) do
+			if className ~= base then
+				local is_a_ok, is_a = pcall(function() return instance:IsA(base) end)
+				if is_a_ok and is_a then
+					local base_props = COMMON_PROPERTIES[base]
+					if base_props then
+						for _, prop in ipairs(base_props) do
+							if not seen[prop] then
+								seen[prop] = true
+								table.insert(props, prop)
+							end
+						end
+					end
+				end
+			end
+		end
+	elseif #props == 0 then
+		-- Fallback without instance: try common base classes
 		local base_classes = { "BasePart", "GuiObject" }
 		for _, base in ipairs(base_classes) do
 			local base_props = COMMON_PROPERTIES[base]
 			if base_props then
 				for _, prop in ipairs(base_props) do
-					table.insert(props, prop)
+					if not seen[prop] then
+						seen[prop] = true
+						table.insert(props, prop)
+					end
 				end
 			end
 		end
@@ -279,7 +305,7 @@ function Serializer.instance_to_json(instance, depth)
 	}
 
 	-- Get known properties for this class
-	local prop_names = Serializer.get_properties_for_class(instance.ClassName)
+	local prop_names = Serializer.get_properties_for_class(instance.ClassName, instance)
 
 	-- Always try Name, Parent
 	for _, prop_name in ipairs(prop_names) do

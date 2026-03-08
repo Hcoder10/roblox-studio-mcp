@@ -36,17 +36,6 @@ local state = {
 -- Check HttpService
 -- ============================================================================
 
-local function check_http_enabled()
-	local ok, err = pcall(function()
-		HttpService:GetAsync("https://httpbin.org/get")
-	end)
-	-- If we get a "not enabled" error, warn the user
-	if not ok and string.find(tostring(err), "not enabled") then
-		return false
-	end
-	return true
-end
-
 -- ============================================================================
 -- Connection Management
 -- ============================================================================
@@ -158,7 +147,8 @@ local function connect()
 	-- Read server URL from plugin settings
 	local saved_url = plugin:GetSetting("StudioBridgeMCP_ServerURL")
 	if saved_url and type(saved_url) == "string" and #saved_url > 0 then
-		if saved_url == LEGACY_CLOUD_SERVER_URL then
+		-- Reset any stale cloud/railway URLs back to local default
+		if saved_url == LEGACY_CLOUD_SERVER_URL or string.find(saved_url, "railway.app") then
 			saved_url = DEFAULT_SERVER_URL
 			plugin:SetSetting("StudioBridgeMCP_ServerURL", saved_url)
 		end
@@ -208,17 +198,6 @@ end
 -- ============================================================================
 -- Plugin Setup
 -- ============================================================================
-
--- Check HttpService availability
-local http_ok = true
-pcall(function()
-	local test_ok, test_err = pcall(function()
-		return HttpService:JSONEncode({ test = true })
-	end)
-	if not test_ok then
-		http_ok = false
-	end
-end)
 
 -- Create toolbar
 local toolbar = plugin:CreateToolbar("Studio Bridge MCP")

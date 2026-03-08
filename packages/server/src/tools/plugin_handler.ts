@@ -2,7 +2,6 @@ import { randomUUID } from 'crypto';
 import type { CommandEnvelope, ToolResponse, ToolHandler, ToolContext } from '@roblox-studio-mcp/shared';
 import { TIMEOUTS } from '@roblox-studio-mcp/shared';
 import type { ServerToolContext } from './context.js';
-import type { CommandQueue } from '../bridge/command_queue.js';
 
 export function create_plugin_handler(tool_name: string, timeout_ms = TIMEOUTS.PLUGIN_COMMAND): ToolHandler {
   return async (args: Record<string, unknown>, context: ToolContext): Promise<ToolResponse> => {
@@ -29,7 +28,7 @@ export function create_plugin_handler(tool_name: string, timeout_ms = TIMEOUTS.P
     };
 
     try {
-      const result = await (ctx.command_queue as CommandQueue).enqueue(command, ctx.linked_session_token);
+      const result = await ctx.command_queue.enqueue(command, ctx.linked_session_token);
       return result.success
         ? { success: true, data: result.result }
         : {

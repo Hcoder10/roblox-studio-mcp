@@ -42,17 +42,27 @@ export function setup_websocket(
     }
   }
 
+  // BUG FIX: Serialize user_message handling to prevent interleaved agent
+  // operations when multiple messages arrive quickly
+  let processing_message = false;
+  const message_queue: Array<{ ws: WebSocket; msg: WsMessage }> = [];
+
   wss.on('connection', (ws) => {
     clients.add(ws);
     logger.info({ clients: clients.size }, 'WebSocket client connected');
 
     // Send current state on connect
+    const current_locks = lock_manager.list();
+    const flat_initial_locks = [
+      ...current_locks.path_locks.map(l => ({ ...l, resource_type: 'path' as const })),
+      ...current_locks.category_locks.map(l => ({ ...l, resource_type: 'category' as const })),
+    ];
     const state_event: WsEvent = {
       type: 'agent_status_changed',
       payload: {
         agents: serialize_agents(),
         tasks: task_queue.list(),
-        locks: lock_manager.list(),
+        locks: flat_initial_locks,
       },
       timestamp: Date.now(),
     };
@@ -80,6 +90,14 @@ export function setup_websocket(
             return;
           }
 
+          // Serialize user message processing to avoid race conditions
+          if (processing_message) {
+            message_queue.push({ ws, msg });
+            logger.debug('Queued user_message while another is processing');
+            return;
+          }
+
+          processing_message = true;
           try {
             await orchestrator.handle_user_message(text, broadcast);
           } catch (error) {
@@ -88,6 +106,18 @@ export function setup_websocket(
               payload: { message: error instanceof Error ? error.message : 'Unknown error' },
               timestamp: Date.now(),
             }));
+          } finally {
+            processing_message = false;
+            // Process next queued message if any
+            const next = message_queue.shift();
+            if (next && next.ws.readyState === WebSocket.OPEN) {
+              const next_payload = next.msg.payload as { text?: string; content?: string };
+              const next_text = next_payload?.text ?? next_payload?.content;
+              if (next_text) {
+                // Re-dispatch: this fires asynchronously
+                next.ws.emit('message', Buffer.from(JSON.stringify(next.msg)));
+              }
+            }
           }
           break;
         }
@@ -113,9 +143,14 @@ export function setup_websocket(
         }
 
         case 'get_locks': {
+          const all_locks = lock_manager.list();
+          const flat_locks = [
+            ...all_locks.path_locks.map(l => ({ ...l, resource_type: 'path' as const })),
+            ...all_locks.category_locks.map(l => ({ ...l, resource_type: 'category' as const })),
+          ];
           ws.send(JSON.stringify({
             type: 'lock_acquired',
-            payload: lock_manager.list(),
+            payload: flat_locks,
             timestamp: Date.now(),
           }));
           break;

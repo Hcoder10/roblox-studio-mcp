@@ -6,6 +6,11 @@ function makeId(): string {
   return `msg-${Date.now()}-${nextId++}`;
 }
 
+let nextToolId = 1;
+function makeToolId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${nextToolId++}`;
+}
+
 export function useChat(
   lastEvent: WsEvent | null,
   send: (data: unknown) => void,
@@ -80,7 +85,7 @@ export function useChat(
         };
         if (!data.agent_id) break;
 
-        const fallbackToolId = data.tool_call_id ?? `${data.agent_id}-${lastEvent.timestamp}`;
+        const fallbackToolId = data.tool_call_id ?? makeToolId(data.agent_id);
         const normalizedToolCall: ToolCall = {
           id: data.tool_call?.id ?? fallbackToolId,
           tool_name: data.tool_call?.tool_name ?? data.tool_name ?? 'unknown',
@@ -155,14 +160,37 @@ export function useChat(
       }
 
       case 'error': {
-        const data = lastEvent.payload as { message: string };
+        const data = lastEvent.payload as { message?: string; error?: string };
+        const content = data.message ?? data.error ?? 'Unknown error';
         const msg: ChatMessage = {
           id: makeId(),
           role: 'system',
-          content: data.message,
+          content,
           timestamp: lastEvent.timestamp,
         };
         setMessages((prev) => [...prev, msg]);
+        break;
+      }
+
+      case 'agent_status_changed': {
+        // Clear thinking indicator if an agent enters error/terminated state
+        const data = lastEvent.payload as {
+          agent_id?: string;
+          id?: string;
+          status?: string;
+        };
+        const agentId = data.agent_id ?? data.id;
+        if (
+          agentId &&
+          (data.status === 'error' || data.status === 'terminated' || data.status === 'idle')
+        ) {
+          setThinkingAgents((prev) => {
+            if (!prev.has(agentId)) return prev;
+            const next = new Set(prev);
+            next.delete(agentId);
+            return next;
+          });
+        }
         break;
       }
     }

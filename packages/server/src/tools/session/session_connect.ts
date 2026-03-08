@@ -13,19 +13,21 @@ export const definition: ToolDefinition = {
 
 export const handler: ToolHandler = async (args: Record<string, unknown>, context: ToolContext) => {
   const ctx = context as ServerToolContext;
-  const { token } = args as { token: string };
+  const { token } = args as { token?: string };
 
-  let session = ctx.session_manager.get(token);
+  let session = token ? ctx.session_manager.get(token) : null;
 
   if (!session) {
-    // Try auto-link if only one session
+    // Try auto-link if only one session or no token provided
     session = ctx.session_manager.get_single_session();
     if (!session) {
       return {
         success: false,
         error: {
           code: 'BRIDGE_NO_SESSION',
-          message: `No bridge session found with token "${token}". Make sure the Roblox Studio plugin is running.`,
+          message: token
+            ? `No bridge session found with token "${token}". Make sure the Roblox Studio plugin is running.`
+            : 'No bridge sessions available. Make sure the Roblox Studio plugin is running.',
           layer: 'bridge',
           tool: 'session_connect',
           retryable: true,

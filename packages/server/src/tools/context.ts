@@ -19,3 +19,19 @@ export function create_tool_context(
     linked_session_token: null,
   };
 }
+
+/**
+ * Create an isolated context for a single MCP session.
+ * Shares command_queue and session_manager references (stateless singletons)
+ * but gets its own linked_session_token so concurrent MCP sessions
+ * don't overwrite each other's bridge link.
+ */
+export function create_session_tool_context(base: ServerToolContext): ServerToolContext {
+  return {
+    command_queue: base.command_queue,
+    session_manager: base.session_manager,
+    session_id: null,
+    server_url: base.server_url,
+    linked_session_token: null,
+  };
+}

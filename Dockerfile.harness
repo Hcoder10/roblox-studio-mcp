@@ -1,0 +1,40 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy root config
+COPY package.json package-lock.json turbo.json tsconfig.base.json ./
+
+# Copy shared package
+COPY packages/shared/package.json packages/shared/
+COPY packages/shared/tsconfig.json packages/shared/
+COPY packages/shared/src packages/shared/src
+
+# Copy agent-harness package
+COPY packages/agent-harness/package.json packages/agent-harness/
+COPY packages/agent-harness/tsconfig.json packages/agent-harness/
+COPY packages/agent-harness/src packages/agent-harness/src
+
+# Install deps and build
+RUN npm ci --ignore-scripts
+RUN cd packages/shared && npx tsc
+RUN cd packages/agent-harness && npx tsc
+
+# Replace workspace symlink with actual built package
+RUN rm -rf node_modules/@roblox-studio-mcp/shared && \
+    mkdir -p node_modules/@roblox-studio-mcp/shared && \
+    cp -r packages/shared/dist node_modules/@roblox-studio-mcp/shared/dist && \
+    cp packages/shared/package.json node_modules/@roblox-studio-mcp/shared/package.json
+
+# Production image
+FROM node:20-alpine
+WORKDIR /app
+
+COPY --from=builder /app/packages/agent-harness/dist ./dist
+COPY --from=builder /app/packages/agent-harness/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+
+ENV NODE_ENV=production
+ENV PORT=3001
+EXPOSE 3001
+
+CMD ["node", "dist/index.js"]

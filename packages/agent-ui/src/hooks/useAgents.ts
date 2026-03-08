@@ -34,7 +34,9 @@ export function useAgents(lastEvent: WsEvent | null) {
 
   // Fetch definitions from REST on mount so panel isn't empty
   useEffect(() => {
-    fetch('http://localhost:3001/agents')
+    const controller = new AbortController();
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    fetch(`${apiBase}/agents`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data: { definitions?: Array<{ id: string; type: string; model: string }> }) => {
         if (data.definitions) {
@@ -50,6 +52,7 @@ export function useAgents(lastEvent: WsEvent | null) {
         }
       })
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {

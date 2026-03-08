@@ -2,13 +2,31 @@ import type { BridgeSession, RegisterRequest } from '@roblox-studio-mcp/shared';
 import { TIMEOUTS } from '@roblox-studio-mcp/shared';
 import { logger } from '../util/logger.js';
 
+export type SessionCleanupCallback = (token: string) => void;
+
 export class SessionManager {
   private sessions = new Map<string, BridgeSession>();
   private gc_timer: NodeJS.Timeout;
+  private cleanup_callbacks: SessionCleanupCallback[] = [];
 
   constructor() {
     this.gc_timer = setInterval(() => this.gc(), TIMEOUTS.SESSION_GC_INTERVAL);
     this.gc_timer.unref();
+  }
+
+  /** Register a callback invoked when a session is removed (GC or manual). */
+  on_session_cleanup(cb: SessionCleanupCallback): void {
+    this.cleanup_callbacks.push(cb);
+  }
+
+  private notify_cleanup(token: string): void {
+    for (const cb of this.cleanup_callbacks) {
+      try {
+        cb(token);
+      } catch {
+        // cleanup callbacks must not throw into GC
+      }
+    }
   }
 
   register(token: string, info: RegisterRequest): void {
@@ -56,6 +74,7 @@ export class SessionManager {
     for (const [token, session] of this.sessions) {
       if (now - session.last_heartbeat > TIMEOUTS.SESSION_EXPIRY) {
         this.sessions.delete(token);
+        this.notify_cleanup(token);
         logger.info({ token }, 'Bridge session expired');
       }
     }

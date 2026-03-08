@@ -50,7 +50,7 @@ describe('Multi-Session Management', () => {
         id: 1,
         method: 'initialize',
         params: {
-          protocolVersion: '2024-11-05',
+          protocolVersion: '2025-06-18',
           capabilities: {},
           clientInfo: { name: 'test-client', version: '1.0.0' },
         },
@@ -134,6 +134,6 @@ describe('Multi-Session Management', () => {
     });
 
     // Should either succeed (idempotent) or return conflict
-    expect(dup_res.status).toBeOneOf([200, 409]);
+    expect([200, 409]).toContain(dup_res.status);
   });
 });

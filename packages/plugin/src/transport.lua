@@ -27,7 +27,7 @@ end
 
 function Transport.register(server_url, token)
 	local StudioService = game:GetService("StudioService")
-	local place_id = game.PlaceId
+	local place_id = tostring(game.PlaceId)
 	local studio_version = "unknown"
 	pcall(function()
 		studio_version = StudioService:GetStudioVersion() or "unknown"

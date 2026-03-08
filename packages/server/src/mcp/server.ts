@@ -4,14 +4,30 @@ import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import { register_all_tools } from '../tools/registry.js';
 import type { ServerToolContext } from '../tools/context.js';
+import { create_session_tool_context } from '../tools/context.js';
 import { logger } from '../util/logger.js';
 
 interface SessionRuntime {
   mcp: McpServer;
   transport: StreamableHTTPServerTransport;
+  context: ServerToolContext;
+  last_activity: number;
 }
 
 const sessions = new Map<string, SessionRuntime>();
+
+// GC stale MCP sessions every 5 minutes (handles clients that disconnect without closing)
+const MCP_SESSION_TIMEOUT = 30 * 60_000; // 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, runtime] of sessions) {
+    if (now - runtime.last_activity > MCP_SESSION_TIMEOUT) {
+      sessions.delete(id);
+      runtime.transport.close?.();
+      logger.info({ session_id: id }, 'MCP session GC: expired stale session');
+    }
+  }
+}, 5 * 60_000).unref();
 
 function build_mcp_server(context: ServerToolContext): { mcp: McpServer; tool_count: number } {
   const mcp = new McpServer({
@@ -33,6 +49,7 @@ export function create_mcp_handler(context: ServerToolContext) {
 
     if (session_id && sessions.has(session_id)) {
       const runtime = sessions.get(session_id)!;
+      runtime.last_activity = Date.now();
       await runtime.transport.handleRequest(req, res, req.body);
       return;
     }
@@ -42,8 +59,10 @@ export function create_mcp_handler(context: ServerToolContext) {
       return;
     }
 
-    // New session
-    const { mcp } = build_mcp_server(context);
+    // New session -- create an isolated context so concurrent MCP sessions
+    // don't share mutable state (linked_session_token, etc.)
+    const session_context = create_session_tool_context(context);
+    const { mcp, tool_count } = build_mcp_server(session_context);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
     });
@@ -61,7 +80,12 @@ export function create_mcp_handler(context: ServerToolContext) {
     await transport.handleRequest(req, res, req.body);
 
     if (transport.sessionId && !sessions.has(transport.sessionId)) {
-      sessions.set(transport.sessionId, { mcp, transport });
+      sessions.set(transport.sessionId, {
+        mcp,
+        transport,
+        context: session_context,
+        last_activity: Date.now(),
+      });
       logger.debug({ session_id: transport.sessionId }, 'New MCP transport created');
     }
   };

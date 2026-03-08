@@ -9,6 +9,8 @@ import { worker_building_definition } from '../agents/definitions/worker_buildin
 import { worker_scripting_definition } from '../agents/definitions/worker_scripting.js';
 import { worker_vfx_definition } from '../agents/definitions/worker_vfx.js';
 import { worker_texture_definition } from '../agents/definitions/worker_texture.js';
+import { testing_agent_definition } from '../agents/definitions/testing_agent.js';
+import { texture_generator_definition } from '../agents/definitions/texture_generator.js';
 
 export function get_default_definitions(): AgentDefinition[] {
   return [
@@ -22,6 +24,8 @@ export function get_default_definitions(): AgentDefinition[] {
     worker_scripting_definition,
     worker_vfx_definition,
     worker_texture_definition,
+    testing_agent_definition,
+    texture_generator_definition,
   ];
 }
 
@@ -36,4 +40,6 @@ export {
   worker_scripting_definition,
   worker_vfx_definition,
   worker_texture_definition,
+  testing_agent_definition,
+  texture_generator_definition,
 };

@@ -33,7 +33,7 @@ async function initialize_session(client_name: string): Promise<string> {
       id: 1,
       method: 'initialize',
       params: {
-        protocolVersion: '2024-11-05',
+        protocolVersion: '2025-06-18',
         capabilities: {},
         clientInfo: { name: client_name, version: '1.0.0' },
       },

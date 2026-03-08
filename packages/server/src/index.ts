@@ -17,6 +17,12 @@ const session_manager = new SessionManager();
 const command_queue = new CommandQueue();
 const event_stream = new EventStream();
 
+// When bridge sessions expire, clean up their associated queues and event streams
+session_manager.on_session_cleanup((token) => {
+  command_queue.cleanup_session(token);
+  event_stream.cleanup(token);
+});
+
 // Create tool context
 const tool_context = create_tool_context(command_queue, session_manager);
 

@@ -71,7 +71,10 @@ export function useWebSocket(url: string) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(data));
     } else {
-      queueRef.current.push(data);
+      // Cap queue to prevent unbounded growth if WS never connects
+      if (queueRef.current.length < 100) {
+        queueRef.current.push(data);
+      }
     }
   }, []);
 

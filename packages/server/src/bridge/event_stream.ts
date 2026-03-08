@@ -33,6 +33,14 @@ export class EventStream {
       return existing;
     }
 
+    // If there's already a waiter for this session, resolve it empty first
+    // to avoid orphaning the old promise
+    const old_waiter = this.waiters.get(session_token);
+    if (old_waiter) {
+      clearTimeout(old_waiter.timer);
+      old_waiter.resolve([]);
+    }
+
     return new Promise<EventMessage[]>((resolve) => {
       const timer = setTimeout(() => {
         this.waiters.delete(session_token);

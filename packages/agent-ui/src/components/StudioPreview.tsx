@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WsEvent } from '../types';
 
 interface StudioPreviewProps {
@@ -13,8 +13,11 @@ export function StudioPreview({ lastEvent }: StudioPreviewProps) {
   useEffect(() => {
     if (!lastEvent) return;
     if (lastEvent.type === 'screenshot_update') {
-      const data = lastEvent.payload as { url: string };
-      setScreenshotUrl(data.url);
+      const data = lastEvent.payload as { url?: string; base64?: string };
+      const url = data.url ?? (data.base64 ? `data:image/png;base64,${data.base64}` : null);
+      if (url) {
+        setScreenshotUrl(url);
+      }
     }
   }, [lastEvent]);
 
@@ -25,6 +28,17 @@ export function StudioPreview({ lastEvent }: StudioPreviewProps) {
   const toggleZoom = useCallback(() => {
     setZoomed((prev) => !prev);
   }, []);
+
+  // Close zoom overlay on Escape key
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!zoomed) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomed(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [zoomed]);
 
   return (
     <>
@@ -52,7 +66,13 @@ export function StudioPreview({ lastEvent }: StudioPreviewProps) {
       </div>
 
       {zoomed && screenshotUrl && (
-        <div className="studio-zoom-overlay" onClick={toggleZoom}>
+        <div
+          ref={overlayRef}
+          className="studio-zoom-overlay"
+          onClick={toggleZoom}
+          role="dialog"
+          aria-label="Zoomed studio screenshot"
+        >
           <img
             src={screenshotUrl}
             alt="Studio screenshot zoomed"

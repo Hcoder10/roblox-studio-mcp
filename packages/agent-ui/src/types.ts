@@ -8,7 +8,9 @@ export type AgentType =
   | 'worker_building'
   | 'worker_scripting'
   | 'worker_vfx'
-  | 'worker_texture';
+  | 'worker_texture'
+  | 'testing'
+  | 'texture_generator';
 
 export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'blocked' | 'error' | 'terminated';
 
@@ -84,10 +86,26 @@ export type WsEventType =
   | 'lock_conflict'
   | 'screenshot_update'
   | 'agent_status_changed'
+  | 'agent_action'
+  | 'live_transcript'
+  | 'live_audio'
   | 'error';
 
 export interface WsEvent {
   type: WsEventType;
   payload: unknown;
   timestamp: number;
+}
+
+export interface AgentAction {
+  id: string;
+  agent_id: string;
+  agent_type: AgentType;
+  action: string;
+  tool_name?: string;
+  tool_args?: Record<string, unknown>;
+  result?: string;
+  status: 'started' | 'completed' | 'error';
+  timestamp: number;
+  duration_ms?: number;
 }

@@ -570,10 +570,13 @@ HANDLERS.script_replace_section = function(args)
 	local rec = begin_recording("Replace in " .. instance.Name)
 	local ok, e = pcall(function()
 		local source = instance.Source
-		local new_source, count = string.gsub(source, old_text, new_text, 1)
-		if count == 0 then
+		-- Use plain string find + replace instead of pattern-based gsub
+		-- to avoid old_text being interpreted as a Lua pattern
+		local start_idx, end_idx = string.find(source, old_text, 1, true)
+		if not start_idx then
 			error("Text not found in script")
 		end
+		local new_source = string.sub(source, 1, start_idx - 1) .. new_text .. string.sub(source, end_idx + 1)
 		instance.Source = new_source
 	end)
 
@@ -593,14 +596,11 @@ HANDLERS.script_validate_syntax = function(args)
 		return { success = false, error_message = "source is required" }
 	end
 
-	local ok, err = pcall(function()
-		loadstring(source)
-	end)
-
-	if ok then
+	local fn, compile_err = loadstring(source)
+	if fn then
 		return { success = true, result = { valid = true } }
 	else
-		return { success = true, result = { valid = false, error = tostring(err) } }
+		return { success = true, result = { valid = false, error = tostring(compile_err) } }
 	end
 end
 

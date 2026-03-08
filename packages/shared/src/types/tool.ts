@@ -50,7 +50,7 @@ export interface ToolContext {
 }
 
 export interface CommandQueueInterface {
-  enqueue(command: CommandEnvelope): Promise<CommandResult>;
+  enqueue(command: CommandEnvelope, session_token?: string): Promise<CommandResult>;
 }
 
 export interface StructuredError {

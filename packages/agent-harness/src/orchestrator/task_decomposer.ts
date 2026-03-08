@@ -5,6 +5,50 @@ import pino from 'pino';
 
 const logger = pino({ name: 'task-decomposer' });
 
+/**
+ * Extract the first balanced JSON object from a string.
+ * Handles strings and escaped characters correctly.
+ */
+function extract_json_object(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let in_string = false;
+  let escape_next = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escape_next) {
+      escape_next = false;
+      continue;
+    }
+
+    if (ch === '\\' && in_string) {
+      escape_next = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      in_string = !in_string;
+      continue;
+    }
+
+    if (in_string) continue;
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
 const DECOMPOSITION_PROMPT = `You are a task decomposition engine for a multi-agent Roblox Studio building system.
 
 Given a user request and optionally the current studio state, break the request into concrete tasks.
@@ -22,7 +66,8 @@ Output ONLY valid JSON in this exact format (no markdown, no explanation):
       "description": "Detailed description of what to build/code, including specific parameters, positions, sizes, colors, etc.",
       "agent_type": "building_lead",
       "priority": 1,
-      "depends_on_indices": []
+      "depends_on_indices": [],
+      "lock_paths": ["Workspace.Map"]
     }
   ]
 }
@@ -32,7 +77,16 @@ Rules:
 - Set dependencies correctly: scripting tasks that reference built objects depend on those building tasks.
 - Priority 1 = highest, 5 = lowest. Independent tasks can share priority.
 - Keep tasks at a reasonable granularity — each task should be 1-10 tool calls.
-- depends_on_indices is an array of 0-based indices of other tasks in the array.`;
+- depends_on_indices is an array of 0-based indices of other tasks in the array.
+- lock_paths: the specific Roblox DataModel paths this task needs EXCLUSIVE write access to (e.g., "Workspace.Map", "ServerScriptService.GameManager", "Lighting").
+
+Lock path rules:
+- Building tasks should lock specific sub-paths under Workspace (e.g., "Workspace.Map", "Workspace.Obby"), NOT all of "Workspace".
+- Scripting tasks should lock their specific script paths (e.g., "ServerScriptService.GameManager", "ReplicatedStorage.Modules").
+- Visual tasks should lock "Lighting" and specific effect paths, NOT all of "Workspace".
+- lock_paths must NOT overlap between tasks that can run in parallel (no dependencies between them).
+- Tasks that need the same paths MUST have dependencies between them (use depends_on_indices).
+- NEVER create a task that deletes or clears Workspace children — always create under specific sub-folders.`;
 
 export async function decompose_request(
   request: string,
@@ -58,22 +112,26 @@ export async function decompose_request(
     agent_type: string;
     priority: number;
     depends_on_indices: number[];
+    lock_paths?: string[];
   }> };
 
   try {
-    // Try to extract JSON from the response (handle markdown code blocks)
-    const json_match = response_text.match(/\{[\s\S]*\}/);
-    if (!json_match) {
+    // BUG FIX: Use balanced brace matching instead of greedy regex to avoid
+    // capturing garbage after the JSON object
+    const json_str = extract_json_object(response_text);
+    if (!json_str) {
       throw new Error('No JSON found in response');
     }
-    parsed = JSON.parse(json_match[0]);
+    parsed = JSON.parse(json_str);
   } catch (error) {
     logger.error({ error, response: response_text.slice(0, 500) }, 'Failed to parse decomposition response');
-    // Return a single task with the full request as fallback
+    // BUG FIX: Fallback task must include [Agent Type:] annotation or
+    // extract_agent_type() in orchestrator will return null and fail the task.
+    // Default to building_lead as a reasonable fallback.
     return [{
       id: uuid(),
       title: 'Execute user request',
-      description: request,
+      description: request + '\n\n[Agent Type: building_lead]',
       status: 'pending',
       assigned_to: null,
       created_by: 'orchestrator',
@@ -102,6 +160,7 @@ export async function decompose_request(
       created_by: 'orchestrator',
       priority: t.priority ?? 3,
       dependencies: [], // Filled in second pass
+      lock_paths: t.lock_paths ?? [],
       created_at: Date.now(),
     });
   }

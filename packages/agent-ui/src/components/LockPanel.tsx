@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Lock } from '../types';
 
 interface LockPanelProps {
@@ -97,7 +97,19 @@ function TreeNodeView({ node, depth }: { node: TreeNode; depth: number }) {
 
 function LockCountdown({ lock }: { lock: Lock }) {
   const expiresAt = lock.acquired_at + lock.ttl_ms;
-  const remaining = Math.max(0, expiresAt - Date.now());
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, expiresAt - Date.now()),
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const r = Math.max(0, expiresAt - Date.now());
+      setRemaining(r);
+      if (r <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
   const seconds = Math.ceil(remaining / 1000);
 
   if (seconds <= 0) return <span className="lock-expired">expired</span>;
@@ -110,8 +122,8 @@ function LockCountdown({ lock }: { lock: Lock }) {
 }
 
 export function LockPanel({ locks }: LockPanelProps) {
-  const pathLocks = locks.filter((l) => l.path);
-  const categoryLocks = locks.filter((l) => l.category);
+  const pathLocks = useMemo(() => locks.filter((l) => l.path), [locks]);
+  const categoryLocks = useMemo(() => locks.filter((l) => l.category), [locks]);
 
   const tree = useMemo(() => buildTree(pathLocks), [pathLocks]);
   const hasChildren = tree.children.size > 0;

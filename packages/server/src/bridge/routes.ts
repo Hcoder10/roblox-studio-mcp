@@ -50,14 +50,21 @@ export function create_bridge_router(
     const start = Date.now();
     const poll_interval = 100;
     const poll_timeout = 2000;
+    let responded = false;
+
+    // Guard against writing after client disconnect
+    req.on('close', () => { responded = true; });
 
     const check = (): void => {
+      if (responded) return;
       const cmd = command_queue.poll(token);
       if (cmd) {
+        responded = true;
         res.json({ has_command: true, command: cmd });
         return;
       }
       if (Date.now() - start >= poll_timeout) {
+        responded = true;
         res.json({ has_command: false });
         return;
       }

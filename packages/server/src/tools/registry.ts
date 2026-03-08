@@ -3,7 +3,7 @@ import type { ToolModule } from '@roblox-studio-mcp/shared';
 import { TOOL_CATEGORIES } from '@roblox-studio-mcp/shared';
 import type { ServerToolContext } from './context.js';
 import { logger } from '../util/logger.js';
-import type { ZodObject, ZodRawShape } from 'zod';
+import { ZodEffects, type ZodObject, type ZodRawShape, type ZodTypeAny } from 'zod';
 
 // Static imports for all tool modules organized by category
 import * as session_connect from './session/session_connect.js';
@@ -176,7 +176,12 @@ export function register_all_tools(mcp: McpServer, context: ServerToolContext): 
   for (const tool of ALL_TOOLS) {
     const { definition: def, handler } = tool;
     // MCP SDK expects ZodRawShape (.shape), not the ZodObject itself
-    const schema = (def.input_schema as ZodObject<ZodRawShape>).shape;
+    // Unwrap ZodEffects (from .refine()/.transform()) to get the underlying ZodObject
+    let zodSchema: ZodTypeAny = def.input_schema;
+    while (zodSchema instanceof ZodEffects) {
+      zodSchema = zodSchema._def.schema;
+    }
+    const schema = (zodSchema as ZodObject<ZodRawShape>).shape;
     mcp.tool(
       def.name,
       def.description,

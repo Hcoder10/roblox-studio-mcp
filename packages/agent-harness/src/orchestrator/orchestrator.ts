@@ -22,11 +22,18 @@ const logger = pino({ name: 'orchestrator' });
 
 // Map from agent_type annotation in task description to AgentType
 const AGENT_TYPE_MAP: Record<string, AgentType> = {
+  orchestrator: 'orchestrator',
+  planning: 'planning',
   building_lead: 'building_lead',
   scripting_lead: 'scripting_lead',
   visual_lead: 'visual_lead',
-  planning: 'planning',
   video_analysis: 'video_analysis',
+  worker_building: 'worker_building',
+  worker_scripting: 'worker_scripting',
+  worker_vfx: 'worker_vfx',
+  worker_texture: 'worker_texture',
+  testing: 'testing',
+  texture_generator: 'texture_generator',
 };
 
 export class Orchestrator {
@@ -58,6 +65,9 @@ export class Orchestrator {
     });
 
     try {
+      // 0. Ensure MCP client is initialized with tools
+      await this.mcp_client.ensure_initialized();
+
       // 1. Create orchestrator model client
       const orchestrator_def = this.agent_registry.get_definitions().find(d => d.type === 'orchestrator');
       if (!orchestrator_def) {
@@ -127,20 +137,62 @@ export class Orchestrator {
 
     // Process tasks in dependency order
     // Tasks with no dependencies (or all deps completed) run in parallel
+    // BUG FIX: Added max_iterations guard to prevent infinite busy-wait
+    // if tasks get stuck. Also check for blocked-forever tasks (pending with
+    // all deps failed).
+    const MAX_WAIT_ITERATIONS = 600; // 600 * 500ms = 5 minutes max wait
+    let wait_iterations = 0;
+
     while (true) {
       const ready = this.task_queue.get_ready();
       if (ready.length === 0) {
         // Check if there are still in-progress tasks
         const in_progress = tasks.filter(t => t.status === 'in_progress');
-        if (in_progress.length === 0) break;
-        // Wait for in-progress tasks
+        if (in_progress.length === 0) {
+          // Check for tasks that are forever-blocked (pending with all deps failed)
+          const stuck_pending = tasks.filter(t => t.status === 'pending');
+          for (const task of stuck_pending) {
+            const has_failed_dep = task.dependencies.some(dep_id => {
+              const dep = this.task_queue.get(dep_id);
+              return dep && (dep.status === 'failed' || dep.status === 'cancelled');
+            });
+            if (has_failed_dep) {
+              this.task_queue.update(task.id, {
+                status: 'cancelled',
+                error: 'Cancelled: dependency task failed',
+                completed_at: Date.now(),
+              });
+              const cancelled_task = this.task_queue.get(task.id);
+              if (cancelled_task) ws_broadcast(create_task_event(cancelled_task, 'updated'));
+            }
+          }
+          break;
+        }
+        // Wait for in-progress tasks with timeout guard
+        wait_iterations++;
+        if (wait_iterations >= MAX_WAIT_ITERATIONS) {
+          logger.error({ tasks: tasks.map(t => ({ id: t.id, status: t.status })) },
+            'Timeout waiting for tasks to complete');
+          // Fail remaining in-progress tasks
+          for (const task of in_progress) {
+            this.task_queue.update(task.id, {
+              status: 'failed',
+              error: 'Timed out waiting for completion',
+              completed_at: Date.now(),
+            });
+          }
+          break;
+        }
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
       }
 
-      // Execute ready tasks in parallel
-      const promises = ready.map(task => this.execute_single_task(task, ws_broadcast, results));
-      await Promise.allSettled(promises);
+      wait_iterations = 0; // Reset counter when we have ready tasks
+
+      // Execute ready tasks sequentially (one at a time) to prevent overwriting
+      for (const task of ready) {
+        await this.execute_single_task(task, ws_broadcast, results);
+      }
 
       // Check if all tasks are done
       const all_done = tasks.every(t =>
@@ -161,7 +213,9 @@ export class Orchestrator {
     const agent_type = this.extract_agent_type(task);
     if (!agent_type) {
       this.task_queue.update(task.id, { status: 'failed', error: 'No agent type specified' });
-      ws_broadcast(create_task_event(this.task_queue.get(task.id)!, 'updated'));
+      // BUG FIX: Guard against undefined from task_queue.get() instead of non-null assertion
+      const updated_task = this.task_queue.get(task.id);
+      if (updated_task) ws_broadcast(create_task_event(updated_task, 'updated'));
       return;
     }
 
@@ -172,7 +226,8 @@ export class Orchestrator {
         status: 'failed',
         error: `No definition for agent type: ${agent_type}`,
       });
-      ws_broadcast(create_task_event(this.task_queue.get(task.id)!, 'updated'));
+      const updated_task = this.task_queue.get(task.id);
+      if (updated_task) ws_broadcast(create_task_event(updated_task, 'updated'));
       return;
     }
 
@@ -193,22 +248,49 @@ export class Orchestrator {
     this.agent_registry.update_status(agent.id, 'thinking');
     agent.current_task_id = task.id;
 
-    ws_broadcast(create_task_event(this.task_queue.get(task.id)!, 'updated'));
+    const in_progress_task = this.task_queue.get(task.id);
+    if (in_progress_task) ws_broadcast(create_task_event(in_progress_task, 'updated'));
     ws_broadcast(create_agent_status_event(agent));
 
-    // Acquire locks for the agent's scope
-    if (definition.lock_scope.allowed_paths.length > 0) {
+    // Acquire locks for this task
+    const lock_paths: string[] = (task as any).lock_paths?.length > 0
+      ? (task as any).lock_paths
+      : definition.lock_scope.allowed_paths;
+    const lock_categories = definition.lock_scope.allowed_categories;
+
+    if (lock_paths.length > 0 || lock_categories.length > 0) {
       const lock_result = this.lock_manager.acquire({
         agent_id: agent.id,
-        paths: definition.lock_scope.allowed_paths,
-        lock_type: 'shared',
+        paths: lock_paths.length > 0 ? lock_paths : undefined,
+        categories: lock_categories.length > 0 ? lock_categories : undefined,
+        lock_type: 'exclusive',
         ttl_ms: 300_000,
         descendants: true,
       });
 
       if (!lock_result.granted) {
-        logger.warn({ agent_id: agent.id, conflicts: lock_result.conflicts }, 'Lock acquisition failed');
-        // Continue anyway with shared locks — real conflicts will be caught by tool proxy
+        logger.warn({ agent_id: agent.id, conflicts: lock_result.conflicts }, 'Lock acquisition failed — waiting for release');
+        // Wait up to 60s for conflicting locks to be released, then retry
+        let retries = 0;
+        while (!lock_result.granted && retries < 12) {
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const retry_result = this.lock_manager.acquire({
+            agent_id: agent.id,
+            paths: lock_paths.length > 0 ? lock_paths : undefined,
+            categories: lock_categories.length > 0 ? lock_categories : undefined,
+            lock_type: 'exclusive',
+            ttl_ms: 300_000,
+            descendants: true,
+          });
+          if (retry_result.granted) {
+            agent.active_locks = retry_result.lock_ids;
+            break;
+          }
+        }
+        if (agent.active_locks.length === 0) {
+          logger.error({ agent_id: agent.id }, 'Could not acquire locks after retries');
+        }
       } else {
         agent.active_locks = lock_result.lock_ids;
       }
@@ -219,6 +301,7 @@ export class Orchestrator {
       const result = await this.agent_runner.run(task, definition, {
         agent,
         mcp_client: this.mcp_client,
+        tool_proxy: this.tool_proxy,
         lock_manager: this.lock_manager,
         message_bus: this.message_bus,
         task_queue: this.task_queue,
@@ -249,11 +332,14 @@ export class Orchestrator {
     } finally {
       // Release locks and update agent status
       this.lock_manager.force_release(agent.id);
+      // BUG FIX: Unregister agent from tool_proxy to prevent stale entries
+      this.tool_proxy.unregister_agent(agent.id);
       agent.active_locks = [];
       agent.current_task_id = null;
       this.agent_registry.update_status(agent.id, 'idle');
 
-      ws_broadcast(create_task_event(this.task_queue.get(task.id)!, 'updated'));
+      const final_task = this.task_queue.get(task.id);
+      if (final_task) ws_broadcast(create_task_event(final_task, 'updated'));
       ws_broadcast(create_agent_status_event(agent));
     }
   }

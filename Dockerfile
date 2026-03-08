@@ -2,7 +2,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy root config
-COPY package.json turbo.json tsconfig.base.json ./
+COPY package.json package-lock.json turbo.json tsconfig.base.json ./
 
 # Copy shared package
 COPY packages/shared/package.json packages/shared/
@@ -15,7 +15,7 @@ COPY packages/server/tsconfig.json packages/server/
 COPY packages/server/src packages/server/src
 
 # Install deps and build
-RUN npm install --ignore-scripts
+RUN npm ci --ignore-scripts
 RUN cd packages/shared && npx tsc
 RUN cd packages/server && npx tsc
 

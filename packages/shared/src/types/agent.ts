@@ -8,7 +8,9 @@ export type AgentType =
   | 'worker_building'
   | 'worker_scripting'
   | 'worker_vfx'
-  | 'worker_texture';
+  | 'worker_texture'
+  | 'testing'
+  | 'texture_generator';
 
 export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'blocked' | 'error' | 'terminated';
 
@@ -59,6 +61,7 @@ export interface AgentTask {
   created_by: string;
   priority: number;
   dependencies: string[];
+  lock_paths?: string[];
   result?: unknown;
   error?: string;
   created_at: number;

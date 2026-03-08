@@ -60,6 +60,11 @@ export class CommandQueue implements CommandQueueInterface {
     logger.debug({ command_id, success: result.success }, 'Command responded');
   }
 
+  /** Clean up the polling queue for an expired session token. */
+  cleanup_session(token: string): void {
+    this.queues.delete(token);
+  }
+
   get pending_count(): number {
     return this.pending.size;
   }

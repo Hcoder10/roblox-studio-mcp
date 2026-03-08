@@ -56,6 +56,7 @@ export type WsEventType =
   | 'agent_tool_call'
   | 'agent_tool_result'
   | 'agent_message'
+  | 'agent_action'
   | 'task_created'
   | 'task_updated'
   | 'lock_acquired'
@@ -63,6 +64,8 @@ export type WsEventType =
   | 'lock_conflict'
   | 'screenshot_update'
   | 'agent_status_changed'
+  | 'live_transcript'
+  | 'live_audio'
   | 'error';
 
 export interface WsEvent {

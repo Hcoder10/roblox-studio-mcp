@@ -12,6 +12,7 @@ import { ModelFactory } from './models/model_factory.js';
 import { Orchestrator } from './orchestrator/orchestrator.js';
 import { setup_websocket } from './ui/ws_handler.js';
 import { get_default_definitions } from './config/agent_config.js';
+import { create_knowledge_base } from './rag/index.js';
 
 const logger = pino({ name: 'agent-harness' });
 
@@ -38,10 +39,19 @@ async function main(): Promise<void> {
   try {
     await mcp_client.initialize();
     await mcp_client.list_tools();
+    await mcp_client.connect_to_bridge();
     logger.info('MCP client initialized and tools loaded');
   } catch (error) {
     logger.warn({ error }, 'Could not initialize MCP client - will retry on first request');
   }
+
+  // Initialize RAG knowledge base (non-blocking)
+  const kb = create_knowledge_base();
+  kb.initialize().then(() => {
+    logger.info({ chunks: kb.chunk_count }, 'RAG knowledge base ready');
+  }).catch((error) => {
+    logger.warn({ error }, 'RAG knowledge base initialization failed - agents will work without RAG');
+  });
 
   // Create orchestrator
   const orchestrator = new Orchestrator(

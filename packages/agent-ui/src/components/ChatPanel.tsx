@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentType, ChatMessage } from '../types';
-import { ToolCallCard } from './ToolCallCard';
+import { ToolCallInspector } from './ToolCallInspector';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -20,7 +20,33 @@ const AGENT_TYPE_LABELS: Record<AgentType, string> = {
   worker_scripting: 'Scripter',
   worker_vfx: 'VFX',
   worker_texture: 'Texture',
+  testing: 'Tester',
+  texture_generator: 'Texture Gen',
 };
+
+const AGENT_TYPE_COLORS: Record<AgentType, string> = {
+  orchestrator: 'var(--accent-orchestrator)',
+  planning: 'var(--accent-planning)',
+  building_lead: 'var(--accent-building)',
+  scripting_lead: 'var(--accent-scripting)',
+  visual_lead: 'var(--accent-visual)',
+  video_analysis: 'var(--accent-visual)',
+  worker_building: 'var(--accent-building)',
+  worker_scripting: 'var(--accent-scripting)',
+  worker_vfx: 'var(--accent-visual)',
+  worker_texture: 'var(--accent-texture)',
+  testing: 'var(--accent-testing)',
+  texture_generator: 'var(--accent-texture)',
+};
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function renderMarkdown(text: string): React.JSX.Element[] {
   const lines = text.split('\n');
@@ -44,7 +70,7 @@ function renderMarkdown(text: string): React.JSX.Element[] {
       } else {
         inCodeBlock = true;
         codeLang = line.slice(3).trim();
-        void codeLang; // language hint not used in rendering
+        void codeLang;
       }
       continue;
     }
@@ -54,12 +80,10 @@ function renderMarkdown(text: string): React.JSX.Element[] {
       continue;
     }
 
-    // Process inline formatting
-    let html = line
+    let html = escapeHtml(line)
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/`(.+?)`/g, '<code class="chat-inline-code">$1</code>');
 
-    // List items
     if (/^[-*]\s/.test(line)) {
       html = `<li>${html.replace(/^[-*]\s/, '')}</li>`;
     } else if (/^\d+\.\s/.test(line)) {
@@ -79,7 +103,6 @@ function renderMarkdown(text: string): React.JSX.Element[] {
     }
   }
 
-  // Close unclosed code block
   if (inCodeBlock && codeLines.length > 0) {
     elements.push(
       <pre key="code-end" className="chat-code-block">
@@ -103,14 +126,13 @@ export function ChatPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, thinkingAgents.size]);
+  }, [messages, thinkingAgents]);
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed) return;
     onSend(trimmed);
     setInput('');
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -129,7 +151,6 @@ export function ChatPanel({
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setInput(e.target.value);
-      // Auto-resize
       const ta = e.target;
       ta.style.height = 'auto';
       ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
@@ -143,6 +164,12 @@ export function ChatPanel({
     return msg.agent_id ?? 'Agent';
   }
 
+  function getAgentColor(msg: ChatMessage): string {
+    const agentType = msg.agent_type ?? agents.get(msg.agent_id ?? '')?.type;
+    if (agentType) return AGENT_TYPE_COLORS[agentType] ?? 'var(--accent-scripting)';
+    return 'var(--accent-scripting)';
+  }
+
   return (
     <div className="chat-panel">
       <div className="panel-header">Chat</div>
@@ -151,7 +178,10 @@ export function ChatPanel({
           <div key={msg.id} className={`chat-message chat-message-${msg.role}`}>
             {msg.role === 'agent' && (
               <div className="chat-agent-header">
-                <span className="chat-agent-name">
+                <span
+                  className="chat-agent-name"
+                  style={{ color: getAgentColor(msg) }}
+                >
                   {msg.agent_id?.split('-')[0] ?? 'Agent'}
                 </span>
                 <span className="chat-agent-badge">{getAgentLabel(msg)}</span>
@@ -169,7 +199,7 @@ export function ChatPanel({
                 {msg.tool_calls && msg.tool_calls.length > 0 && (
                   <div className="chat-tool-calls">
                     {msg.tool_calls.map((tc) => (
-                      <ToolCallCard key={tc.id} toolCall={tc} />
+                      <ToolCallInspector key={tc.id} toolCall={tc} />
                     ))}
                   </div>
                 )}
@@ -187,10 +217,10 @@ export function ChatPanel({
               <span className="chat-agent-name">{agentId.split('-')[0]}</span>
             </div>
             <div className="chat-bubble">
-              <div className="typing-indicator">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
+              <div className="thinking-indicator">
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
               </div>
             </div>
           </div>
@@ -207,9 +237,15 @@ export function ChatPanel({
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           placeholder="Type a message... (Ctrl+Enter to send)"
+          aria-label="Chat message input"
           rows={1}
         />
-        <button className="chat-send-btn" onClick={handleSend} disabled={!input.trim()}>
+        <button
+          className="chat-send-btn"
+          onClick={handleSend}
+          disabled={!input.trim()}
+          aria-label="Send message"
+        >
           Send
         </button>
       </div>

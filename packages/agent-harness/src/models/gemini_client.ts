@@ -26,8 +26,14 @@ export class GeminiClient implements GenerativeModelClient {
     private temperature: number,
     private max_tokens: number,
     private live_model: string,
+    private thinking_budget: number = 32768,
   ) {
     this.client = new GoogleGenAI({ apiKey: api_key });
+  }
+
+  private should_use_thinking(): boolean {
+    const lower = this.model.toLowerCase();
+    return lower.includes('pro') || lower.includes('3.1');
   }
 
   async generate(
@@ -66,6 +72,9 @@ export class GeminiClient implements GenerativeModelClient {
             : undefined,
           temperature: this.temperature,
           maxOutputTokens: this.max_tokens,
+          thinkingConfig: this.should_use_thinking() ? {
+            thinkingBudget: 32768,
+          } : undefined,
         },
       });
 

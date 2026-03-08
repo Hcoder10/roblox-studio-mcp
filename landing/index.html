@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roblox Studio MCP — AI Agent Team for Roblox</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#e0e0e0;min-height:100vh}
+.hero{text-align:center;padding:60px 20px 40px;background:linear-gradient(135deg,#0a0a2e 0%,#1a0a3e 50%,#0a1a2e 100%)}
+.hero h1{font-size:3rem;background:linear-gradient(90deg,#00d4ff,#7c3aed,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px}
+.hero p{font-size:1.3rem;color:#a0a0b0;max-width:700px;margin:0 auto 30px}
+.badge{display:inline-block;background:#7c3aed;color:#fff;padding:6px 16px;border-radius:20px;font-size:0.85rem;margin-bottom:20px}
+.stats{display:flex;justify-content:center;gap:40px;margin:30px 0}
+.stat{text-align:center}.stat .num{font-size:2.5rem;font-weight:700;color:#00d4ff}.stat .label{color:#808090;font-size:0.9rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;max-width:1000px;margin:0 auto;padding:40px 20px}
+.card{background:#12121a;border:1px solid #2a2a3a;border-radius:12px;padding:28px;transition:border-color .2s}
+.card:hover{border-color:#7c3aed}
+.card h3{color:#00d4ff;margin-bottom:10px;font-size:1.2rem}
+.card p{color:#a0a0b0;line-height:1.6;font-size:0.95rem}
+.actions{text-align:center;padding:40px 20px}
+.btn{display:inline-block;padding:14px 32px;border-radius:8px;font-size:1.1rem;font-weight:600;text-decoration:none;margin:8px;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:#7c3aed;color:#fff}
+.btn-secondary{background:#1a1a2e;color:#00d4ff;border:2px solid #00d4ff}
+.btn-outline{background:transparent;color:#a0a0b0;border:1px solid #3a3a4a}
+.setup{max-width:800px;margin:0 auto;padding:40px 20px}
+.setup h2{color:#fff;text-align:center;margin-bottom:24px;font-size:1.8rem}
+.step{background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;margin-bottom:16px}
+.step .num{display:inline-block;background:#7c3aed;color:#fff;width:28px;height:28px;border-radius:50%;text-align:center;line-height:28px;font-weight:700;margin-right:10px;font-size:0.85rem}
+.step code{background:#1a1a2e;padding:2px 8px;border-radius:4px;color:#00d4ff;font-size:0.9rem}
+.agents{max-width:1000px;margin:0 auto;padding:20px}
+.agents h2{text-align:center;color:#fff;margin-bottom:20px;font-size:1.8rem}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.agent{background:#12121a;border:1px solid #2a2a3a;border-radius:8px;padding:14px;text-align:center;font-size:0.85rem}
+.agent .icon{font-size:1.8rem;margin-bottom:6px}
+.agent .name{color:#00d4ff;font-weight:600}
+.agent .role{color:#808090;font-size:0.75rem;margin-top:4px}
+footer{text-align:center;padding:40px 20px;color:#505060;font-size:0.85rem;border-top:1px solid #1a1a2a}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">Gemini 3.1 Pro Hackathon Project</div>
+  <h1>Roblox Studio MCP</h1>
+  <p>A multi-agent AI system that builds entire Roblox games. 12 specialized agents collaborate through 118 MCP tools to create worlds, write scripts, add VFX, and test — all in real-time.</p>
+  <div class="stats">
+    <div class="stat"><div class="num">12</div><div class="label">AI Agents</div></div>
+    <div class="stat"><div class="num">118</div><div class="label">MCP Tools</div></div>
+    <div class="stat"><div class="num">1,272</div><div class="label">RAG Chunks</div></div>
+  </div>
+</div>
+
+<div class="actions">
+  <a href="https://roblox-agent-ui.vercel.app" class="btn btn-primary" target="_blank">Open Agent UI</a>
+  <a href="https://github.com/SquaredCub/roblox-studio-mcp" class="btn btn-secondary" target="_blank">View Source Code</a>
+  <a href="https://github.com/SquaredCub/roblox-studio-mcp/releases" class="btn btn-outline" target="_blank">Download Plugin + MCP Server</a>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <h3>Multi-Agent Orchestration</h3>
+    <p>An orchestrator decomposes requests into tasks, assigns them to specialized team leads (Building, Scripting, Visual), who execute sequentially with exclusive resource locks to prevent conflicts.</p>
+  </div>
+  <div class="card">
+    <h3>118 MCP Tools</h3>
+    <p>Full Roblox Studio control: instance creation, script management, terrain editing, playtesting, animation, diagnostics, UI building, cloud APIs, and Luau parsing — all via Model Context Protocol.</p>
+  </div>
+  <div class="card">
+    <h3>Deep Thinking Mode</h3>
+    <p>Gemini 3.1 Pro with 32K thinking budget generates production-quality Luau scripts with proper game mechanics, OOP patterns, and server-client architecture.</p>
+  </div>
+  <div class="card">
+    <h3>RAG Knowledge Base</h3>
+    <p>1,272 chunks from the Roblox API dump + 28 expert pattern documents give agents deep knowledge of every Instance class, service, and best practice.</p>
+  </div>
+  <div class="card">
+    <h3>Resource Locking</h3>
+    <p>Hierarchical path locks + category locks prevent agents from overwriting each other. Building agent locks Workspace.Map while Scripting locks ServerScriptService — zero conflicts.</p>
+  </div>
+  <div class="card">
+    <h3>Real-Time UI</h3>
+    <p>WebSocket-powered dashboard shows live agent status, task progress, tool calls, lock visualization, and chat — all updating in real-time as agents work.</p>
+  </div>
+</div>
+
+<div class="agents">
+  <h2>The Agent Team</h2>
+  <div class="agent-grid">
+    <div class="agent"><div class="icon">🎯</div><div class="name">Orchestrator</div><div class="role">Task decomposition</div></div>
+    <div class="agent"><div class="icon">📋</div><div class="name">Planning</div><div class="role">Build plans</div></div>
+    <div class="agent"><div class="icon">🏗️</div><div class="name">Building Lead</div><div class="role">World construction</div></div>
+    <div class="agent"><div class="icon">💻</div><div class="name">Scripting Lead</div><div class="role">Game logic</div></div>
+    <div class="agent"><div class="icon">✨</div><div class="name">Visual Lead</div><div class="role">VFX & lighting</div></div>
+    <div class="agent"><div class="icon">📹</div><div class="name">Video Analysis</div><div class="role">Visual QA</div></div>
+    <div class="agent"><div class="icon">🔨</div><div class="name">Build Worker</div><div class="role">Construction</div></div>
+    <div class="agent"><div class="icon">⚡</div><div class="name">Script Worker</div><div class="role">Code execution</div></div>
+    <div class="agent"><div class="icon">🎆</div><div class="name">VFX Worker</div><div class="role">Particles & beams</div></div>
+    <div class="agent"><div class="icon">🎨</div><div class="name">Texture Worker</div><div class="role">Materials</div></div>
+    <div class="agent"><div class="icon">🧪</div><div class="name">Testing</div><div class="role">Playtest & QA</div></div>
+    <div class="agent"><div class="icon">🖼️</div><div class="name">Texture Gen</div><div class="role">Asset creation</div></div>
+  </div>
+</div>
+
+<div class="setup">
+  <h2>Quick Start</h2>
+  <div class="step"><span class="num">1</span> Clone the repo: <code>git clone https://github.com/SquaredCub/roblox-studio-mcp.git</code></div>
+  <div class="step"><span class="num">2</span> Install deps: <code>npm install && npm run build</code></div>
+  <div class="step"><span class="num">3</span> Copy <code>packages/plugin/StudioBridgeMCP.rbxmx</code> to <code>%LOCALAPPDATA%\Roblox\Plugins\</code></div>
+  <div class="step"><span class="num">4</span> Start MCP server: <code>cd packages/server && node dist/index.js</code></div>
+  <div class="step"><span class="num">5</span> Set <code>GEMINI_API_KEY</code> in <code>packages/agent-harness/.env</code></div>
+  <div class="step"><span class="num">6</span> Start agent harness: <code>cd packages/agent-harness && node dist/index.js</code></div>
+  <div class="step"><span class="num">7</span> Open Roblox Studio → click <strong>Connect</strong> in the plugin toolbar</div>
+  <div class="step"><span class="num">8</span> Open <code>http://localhost:5173</code> for the Agent UI and start building!</div>
+</div>
+
+<footer>
+  Built with Gemini 3.1 Pro + Model Context Protocol + TypeScript + Luau<br>
+  &copy; 2026 Roblox Studio MCP
+</footer>
+
+</body>
+</html>
