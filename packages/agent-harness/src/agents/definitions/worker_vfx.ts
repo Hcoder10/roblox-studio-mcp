@@ -5,7 +5,7 @@ export const worker_vfx_definition: AgentDefinition = {
   type: 'worker_vfx',
   model: {
     provider: 'gemini',
-    model: 'gemini-3.1-pro',
+    model: 'gemini-3.1-pro-preview',
     temperature: 0.4,
     max_tokens: 65536,
     api_key_env: 'GEMINI_API_KEY',

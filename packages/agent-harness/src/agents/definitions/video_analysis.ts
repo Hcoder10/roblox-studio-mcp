@@ -5,7 +5,7 @@ export const video_analysis_definition: AgentDefinition = {
   type: 'video_analysis',
   model: {
     provider: 'gemini',
-    model: 'gemini-3.1-pro',
+    model: 'gemini-3.1-pro-preview',
     temperature: 0.3,
     max_tokens: 65536,
     api_key_env: 'GEMINI_API_KEY',

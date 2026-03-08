@@ -5,7 +5,7 @@ export const building_lead_definition: AgentDefinition = {
   type: 'building_lead',
   model: {
     provider: 'gemini',
-    model: 'gemini-3.1-pro',
+    model: 'gemini-3.1-pro-preview',
     temperature: 0.4,
     max_tokens: 65536,
     api_key_env: 'GEMINI_API_KEY',
